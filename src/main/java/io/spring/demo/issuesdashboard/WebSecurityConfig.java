@@ -1,10 +1,6 @@
 package io.spring.demo.issuesdashboard;
 
-//import org.springframework.boot.actuate.autoconfigure.security.EndpointRequest;
-//import org.springframework.boot.autoconfigure.security.StaticResourceRequest;
-
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
-import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,12 +32,14 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
 		http.authorizeRequests()
-				.antMatchers("/admin").hasRole("ADMIN")
 				.requestMatchers(EndpointRequest.to("info", "health")).permitAll()
 				.requestMatchers(EndpointRequest.toAnyEndpoint()).hasRole("ACTUATOR")
-				.requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
 				.antMatchers("/events/**").hasRole("USER")
+				.antMatchers("/admin/**").hasRole("ADMIN")
 				.antMatchers("/**").permitAll()
-				.and().httpBasic();
+				.and()
+				.csrf()
+				.disable()
+				.httpBasic();
 	}
 }

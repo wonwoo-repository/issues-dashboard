@@ -44,17 +44,17 @@
 </section>
 <section class="section">
     <h2 class="title">Add a new project</h2>
-    <form>
+    <form  action="/admin" method="post">
         <div class="field is-horizontal is-grouped">
             <div class="field-body">
                 <div class="field">
                     <p class="control is-expanded">
-                        <input class="input" type="text" placeholder="Organization">
+                        <input class="input" type="text" name="orgName" placeholder="Organization">
                     </p>
                 </div>
                 <div class="field">
                     <p class="control is-expanded">
-                        <input class="input" type="text" placeholder="Repository">
+                        <input class="input" type="text" name="repoName" placeholder="Repository">
                     </p>
                 </div>
                 <div class="control">
