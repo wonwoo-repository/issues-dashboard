@@ -1,45 +1,42 @@
 package io.spring.demo.issuesdashboard;
 
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.autoconfigure.security.reactive.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.User;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+@EnableReactiveMethodSecurity
+public class WebSecurityConfig {
 
-	@Bean
-	public InMemoryUserDetailsManager inMemoryUserDetailsManager() {
-		return new InMemoryUserDetailsManager(
-				User.withUsername("user").password("password")
-						.passwordEncoder(passwordEncoder()::encode)
-						.authorities("ROLE_USER").build(),
-				User.withUsername("admin").password("admin")
-						.passwordEncoder(passwordEncoder()::encode)
-						.authorities("ROLE_ACTUATOR", "ROLE_ADMIN", "ROLE_USER").build());
-	}
+    @Bean
+    SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+        http.authorizeExchange()
+                .matchers(EndpointRequest.to("info", "health")).permitAll()
+                .matchers(EndpointRequest.toAnyEndpoint()).hasRole("ACTUATOR")
+                .pathMatchers("/events/**").hasRole("USER")
+                .pathMatchers("/admin/**").hasRole("ADMIN")
+                .pathMatchers("/**", "/login").permitAll()
+                .anyExchange().authenticated()
+                .and()
+                .httpBasic().and()
+                .formLogin()
+                .loginPage("/login");
+        return http.build();
+    }
 
-	@Bean
-	PasswordEncoder passwordEncoder() {
-		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-	}
 
-	@Override
-	protected void configure(HttpSecurity http) throws Exception {
-		http.authorizeRequests()
-				.requestMatchers(EndpointRequest.to("info", "health")).permitAll()
-				.requestMatchers(EndpointRequest.toAnyEndpoint()).hasRole("ACTUATOR")
-				.antMatchers("/events/**").hasRole("USER")
-				.antMatchers("/admin/**").hasRole("ADMIN")
-				.antMatchers("/**").permitAll()
-				.and()
-				.csrf()
-				.disable()
-				.httpBasic();
-	}
+    //TODO
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        DelegatingPasswordEncoder passwordEncoder = (DelegatingPasswordEncoder) PasswordEncoderFactories.createDelegatingPasswordEncoder();
+        passwordEncoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance());
+        return passwordEncoder;
+    }
 }
