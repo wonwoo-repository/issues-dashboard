@@ -31,7 +31,7 @@ public class RepositoryReactiveUserDetailsService implements ReactiveUserDetails
 
         @Override
         public Collection<? extends GrantedAuthority> getAuthorities() {
-            return AuthorityUtils.createAuthorityList("ROLE_ADMIN");
+            return AuthorityUtils.createAuthorityList("ROLE_ADMIN", "ROLE_ACTUATOR", "ROLE_USER");
         }
 
         @Override
