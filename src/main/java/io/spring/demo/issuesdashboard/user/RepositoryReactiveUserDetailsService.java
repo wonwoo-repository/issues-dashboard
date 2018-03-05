@@ -36,7 +36,7 @@ public class RepositoryReactiveUserDetailsService implements ReactiveUserDetails
 
         @Override
         public String getUsername() {
-            return getEmail();
+            return getFirstName();
         }
 
         @Override

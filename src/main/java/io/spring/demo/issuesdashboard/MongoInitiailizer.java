@@ -24,8 +24,8 @@ public class MongoInitiailizer implements SmartInitializingSingleton {
     @Override
     public void afterSingletonsInstantiated() {
 
-        User admin = new User(1L, "admin@test.com", "admin", "wonwoo", "lee");
-        User user = new User(2L, "user@test.com", "password", "kevin", "kim");
+        User admin = new User(1L, "admin", "wonwoo", "lee");
+        User user = new User(2L, "password", "kevin", "kim");
 
         this.userRepository.deleteAll()
                 .thenMany(this.userRepository.saveAll(Arrays.asList(admin, user)))
@@ -38,7 +38,7 @@ public class MongoInitiailizer implements SmartInitializingSingleton {
 
         this.githubProjectRepository.deleteAll()
                 .thenMany(this.githubProjectRepository.saveAll(Arrays.asList(springBoot, springInitializr, springSagan)))
-                        .subscribe(null, null,
-                                () -> this.githubProjectRepository.findAll().subscribe(System.out::println));
+                .subscribe(null, null,
+                        () -> this.githubProjectRepository.findAll().subscribe(System.out::println));
     }
 }
