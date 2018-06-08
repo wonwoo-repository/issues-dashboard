@@ -2,19 +2,18 @@ package io.spring.demo.issuesdashboard.events;
 
 import java.io.Serializable;
 
-import javax.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 
-@Entity
+@Document
 public class GithubProject implements Serializable {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private String id;
 
 	private String orgName;
 
-	@Column(unique = true)
 	private String repoName;
 
 	public GithubProject() {
@@ -25,7 +24,7 @@ public class GithubProject implements Serializable {
 		this.repoName = repoName;
 	}
 
-	public Long getId() {
+	public String getId() {
 		return id;
 	}
 

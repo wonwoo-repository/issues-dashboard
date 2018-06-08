@@ -1,87 +1,119 @@
 package io.spring.demo.issuesdashboard.github;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import io.micrometer.core.instrument.MeterRegistry;
-import io.spring.demo.issuesdashboard.GithubProperties;
-
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpRequest;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.ClientHttpRequestExecution;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Base64Utils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.*;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.spring.demo.issuesdashboard.GithubProperties;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Component
 public class GithubClient {
 
-	private final RestTemplate restTemplate;
+    private final WebClient webClient;
+    private static final String EVENT_ISSUES_BASE_URL = "https://api.github.com";
 
-	private static final String EVENT_ISSUES_URL = "https://api.github.com/repos/{owner}/{repo}/issues/events";
+    public GithubClient(WebClient.Builder client, GithubProperties properties, MeterRegistry meterRegistry) {
+        this.webClient = client.filter(new GithubAppTokenInterceptor(properties.getToken()))
+                .baseUrl(EVENT_ISSUES_BASE_URL)
+                .build();
+    }
 
-	public GithubClient(RestTemplateBuilder builder, GithubProperties properties, MeterRegistry meterRegistry) {
+    public Flux<RepositoryEvent> fetchEvents(String orgName, String repoName) {
+        return this.webClient.get().uri("/repos/{owner}/{repo}/issues/events", orgName, repoName)
+                .retrieve()
+                .bodyToFlux(RepositoryEvent.class);
+    }
 
-		this.restTemplate = builder
-				.additionalInterceptors(new GithubAppTokenInterceptor(properties.getToken()))
-				.additionalInterceptors(new MetricsInterceptor(meterRegistry))
-				.build();
-	}
+    @Cacheable("events")
+    public Flux<RepositoryEvent> fetchEventsList(String orgName, String repoName) {
+        return fetchEvents(orgName, repoName);
+    }
 
-	public ResponseEntity<RepositoryEvent[]> fetchEvents(String orgName, String repoName) {
-		return this.restTemplate.getForEntity(EVENT_ISSUES_URL, RepositoryEvent[].class, orgName, repoName);
-	}
+    private static class GithubAppTokenInterceptor implements ExchangeFilterFunction {
+        private final String token;
 
-	@Cacheable("events")
-	public List<RepositoryEvent> fetchEventsList(String orgName, String repoName) {
-		return Arrays.asList(fetchEvents(orgName, repoName).getBody());
-	}
+        GithubAppTokenInterceptor(String token) {
+            this.token = token;
+        }
 
+        @Override
+        public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
+            if (StringUtils.hasText(this.token)) {
+                byte[] basicAuthValue = this.token.getBytes(StandardCharsets.UTF_8);
+                request.headers().set(HttpHeaders.AUTHORIZATION,
+                        "Basic " + Base64Utils.encodeToString(basicAuthValue));
+            }
+            return next.exchange(request);
+        }
+    }
 
-	private static class GithubAppTokenInterceptor implements ClientHttpRequestInterceptor {
+    //TODO
 
-		private final String token;
+//    private static class MetricsInterceptor implements ExchangeFilterFunction {
+//
+//        private final AtomicInteger gauge;
+//
+//        public MetricsInterceptor(MeterRegistry meterRegistry) {
+//            this.gauge = meterRegistry.gauge("github.ratelimit.remaining", new AtomicInteger(0));
+//        }
+        //
+        //		@Override
+        //		public ClientHttpResponse intercept(HttpRequest httpRequest, byte[] bytes,
+        //				ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
+        //			ClientHttpResponse response = clientHttpRequestExecution.execute(httpRequest, bytes);
+        //			this.gauge.set(Integer.parseInt(response.getHeaders().getFirst("X-RateLimit-Remaining")));
+        //			return response;
+        //		}
 
-		GithubAppTokenInterceptor(String token) {
-			this.token = token;
-		}
+//        @Override
+//        public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
+//            Mono<ClientResponse> exchange = next.exchange(request)
+//                    .flatMap(clientResponse -> this.gauge.set(Integer.parseInt(clientResponse.headers().header("X-RateLimit-Remaining").get(0))))
+//            return null;
+//        }
+    }
 
-		@Override
-		public ClientHttpResponse intercept(HttpRequest httpRequest, byte[] bytes,
-				ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
-			if (StringUtils.hasText(this.token)) {
-				byte[] basicAuthValue = this.token.getBytes(StandardCharsets.UTF_8);
-				httpRequest.getHeaders().set(HttpHeaders.AUTHORIZATION,
-						"Basic " + Base64Utils.encodeToString(basicAuthValue));
-			}
-			return clientHttpRequestExecution.execute(httpRequest, bytes);
-		}
-
-	}
-
-	private static class MetricsInterceptor implements ClientHttpRequestInterceptor {
-
-		private final AtomicInteger gauge;
-
-		public MetricsInterceptor(MeterRegistry meterRegistry) {
-			this.gauge = meterRegistry.gauge("github.ratelimit.remaining", new AtomicInteger(0));
-		}
-
-		@Override
-		public ClientHttpResponse intercept(HttpRequest httpRequest, byte[] bytes,
-				ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
-			ClientHttpResponse response = clientHttpRequestExecution.execute(httpRequest, bytes);
-			this.gauge.set(Integer.parseInt(response.getHeaders().getFirst("X-RateLimit-Remaining")));
-			return response;
-		}
-	}
-}
+    //	private static class GithubAppTokenInterceptor implements ClientHttpRequestInterceptor {
+    //
+    //		private final String token;
+    //
+    //		GithubAppTokenInterceptor(String token) {
+    //			this.token = token;
+    //		}
+    //
+    //		@Override
+    //		public ClientHttpResponse intercept(HttpRequest httpRequest, byte[] bytes,
+    //				ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
+    //			if (StringUtils.hasText(this.token)) {
+    //				byte[] basicAuthValue = this.token.getBytes(StandardCharsets.UTF_8);
+    //				httpRequest.getHeaders().set(HttpHeaders.AUTHORIZATION,
+    //						"Basic " + Base64Utils.encodeToString(basicAuthValue));
+    //			}
+    //			return clientHttpRequestExecution.execute(httpRequest, bytes);
+    //		}
+    //
+    //	}
+    //
+    //	private static class MetricsInterceptor implements ClientHttpRequestInterceptor {
+    //
+    //		private final AtomicInteger gauge;
+    //
+    //		public MetricsInterceptor(MeterRegistry meterRegistry) {
+    //			this.gauge = meterRegistry.gauge("github.ratelimit.remaining", new AtomicInteger(0));
+    //		}
+    //
+    //		@Override
+    //		public ClientHttpResponse intercept(HttpRequest httpRequest, byte[] bytes,
+    //				ClientHttpRequestExecution clientHttpRequestExecution) throws IOException {
+    //			ClientHttpResponse response = clientHttpRequestExecution.execute(httpRequest, bytes);
+    //			this.gauge.set(Integer.parseInt(response.getHeaders().getFirst("X-RateLimit-Remaining")));
+    //			return response;
+    //		}

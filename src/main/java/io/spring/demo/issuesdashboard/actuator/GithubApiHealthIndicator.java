@@ -1,15 +1,16 @@
 package io.spring.demo.issuesdashboard.actuator;
 
-import io.spring.demo.issuesdashboard.github.GithubClient;
-import io.spring.demo.issuesdashboard.github.RepositoryEvent;
-
+import org.springframework.boot.actuate.health.AbstractReactiveHealthIndicator;
 import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
+import io.spring.demo.issuesdashboard.github.GithubClient;
+import io.spring.demo.issuesdashboard.github.RepositoryEvent;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 @Component
-public class GithubApiHealthIndicator implements HealthIndicator {
+public class GithubApiHealthIndicator extends AbstractReactiveHealthIndicator {
 
 	private final GithubClient githubClient;
 
@@ -17,22 +18,16 @@ public class GithubApiHealthIndicator implements HealthIndicator {
 		this.githubClient = githubClient;
 	}
 
-	@Override
-	public Health health() {
-		try {
-			ResponseEntity<RepositoryEvent[]> responseEntity = githubClient
-					.fetchEvents("spring-projects", "spring-boot");
-			if (responseEntity.getStatusCode().is2xxSuccessful()) {
-				return Health.up()
-						.withDetail("X-RateLimit-Remaining", responseEntity.getHeaders().getFirst("X-RateLimit-Remaining"))
-						.build();
-			}
-			else {
-				return Health.down().withDetail("status", responseEntity.getStatusCode()).build();
-			}
-		}
-		catch (Exception e) {
-			return Health.down(e).build();
-		}
-	}
+	//TODO
+
+    @Override
+    protected Mono<Health> doHealthCheck(Health.Builder builder) {
+        Flux<RepositoryEvent> events = githubClient.fetchEvents("spring-projects", "spring-boot");
+        return events.map(repositoryEvent -> up(builder, repositoryEvent)).next()
+                .onErrorResume(ex -> Mono.just(new Health.Builder().down(ex).build()));
+    }
+
+    private Health up(Health.Builder builder, RepositoryEvent repositoryEvent) {
+        return builder.up().withDetail("actor", repositoryEvent.getActor()).build();
+    }
 }

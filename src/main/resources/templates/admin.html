@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,7 +44,7 @@
 </section>
 <section class="section">
     <h2 class="title">Add a new project</h2>
-    <form  action="/admin" method="post">
+    <form th:action="@{/admin}" th:method="post">
         <div class="field is-horizontal is-grouped">
             <div class="field-body">
                 <div class="field">

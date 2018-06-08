@@ -1,8 +1,10 @@
 package io.spring.demo.issuesdashboard.events;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 
-public interface GithubProjectRepository extends CrudRepository<GithubProject, Long> {
+import reactor.core.publisher.Mono;
 
-	GithubProject findByRepoName(String repoName);
+public interface GithubProjectRepository extends ReactiveMongoRepository<GithubProject, Long> {
+
+	Mono<GithubProject> findByRepoName(String repoName);
 }
