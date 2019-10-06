@@ -29,13 +29,13 @@ public class EventsController {
                         this.githubClient.fetchEvents(project.getOrgName(), project.getRepoName()));
     }
 
-
-    //TODO
     @GetMapping("/")
     public Rendering dashboard() {
+
         Flux<DashboardEntry> entries = this.repository.findAll()
-                .map(githubProject -> new DashboardEntry(githubProject,
-                        githubClient.fetchEventsList(githubProject.getOrgName(), githubProject.getRepoName()).collectList().block()));
+                .flatMap(githubProject -> githubClient.fetchEventsList(githubProject.getOrgName(), githubProject.getRepoName()).collectList()
+                        .map(repositoryEvent -> new DashboardEntry(githubProject, repositoryEvent)));
+
         return Rendering.view("dashboard")
                 .modelAttribute("entries", entries)
                 .build();

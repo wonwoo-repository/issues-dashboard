@@ -61,6 +61,7 @@ public class RepositoryEvent {
 		LOCKED("locked"),
 		UNLOCKED("unlocked"),
 		HEAD_REF_DELETED("head_ref_deleted"),
+		HEAD_REF_FORCE_PUSHED("head_ref_force_pushed"),
 		HEAD_REF_RESTORED("head_ref_restored"),
 		CONVERTED_NOTE_TO_ISSUE("converted_note_to_issue"),
 		MOVED_COLUMNS_IN_PROJECT("moved_columns_in_project"),
